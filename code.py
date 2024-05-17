@@ -41,11 +41,8 @@ requestsInsecure = adafruit_requests.Session(pool, sslContext)
 
 headers = {'Accept': 'application/json','Authorization':'Bearer ' + os.getenv('TOKEN'), 'X-version':'3'}
 
-alerts = requests.get('https://' + os.getenv('COMPANY') + '.logicmonitor.com/santaba/rest/device/groups/' + str(os.getenv('GROUP')) + '/alerts', headers=headers)
-#print(alerts.text)
-#print(alerts.json()['total'])
-
 while True:
+    alerts = requests.get('https://' + os.getenv('COMPANY') + '.logicmonitor.com/santaba/rest/device/groups/' + str(os.getenv('GROUP')) + '/alerts', headers=headers)
     severity = 0
     
     if alerts.json()['total'] > 0:
