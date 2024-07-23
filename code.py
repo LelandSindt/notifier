@@ -7,11 +7,15 @@ import ssl
 import json
 import board
 import time 
+import supervisor
+import traceback
 
 RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 ORANGE = (255,165,0)
 GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+WHITE = (255, 255, 255)
 
 print()
 print("Connecting to WiFi")
@@ -29,7 +33,11 @@ print("My IP address is", wifi.radio.ipv4_address)
 
 import neopixel
 
-pixel = neopixel.NeoPixel(board.NEOPIXEL, 1)
+num_pixels = 64
+ORDER = neopixel.RGB
+pixel = neopixel.NeoPixel(board.D14, num_pixels, brightness=0.05, pixel_order=ORDER)
+pixel.fill(BLUE)
+#pixel = neopixel.NeoPixel(board.NEOPIXEL, 1)
 
 pool = socketpool.SocketPool(wifi.radio)
 sslContext = ssl.create_default_context() 
@@ -42,36 +50,45 @@ requestsInsecure = adafruit_requests.Session(pool, sslContext)
 headers = {'Accept': 'application/json','Authorization':'Bearer ' + os.getenv('TOKEN'), 'X-version':'3'}
 
 while True:
-    alerts = requests.get('https://' + os.getenv('COMPANY') + '.logicmonitor.com/santaba/rest/device/groups/' + str(os.getenv('GROUP')) + '/alerts', headers=headers)
     severity = 0
-    
-    if alerts.json()['total'] > 0:
-        print('total: ' + str(alerts.json()['total']))
 
-    for item in alerts.json()['items']:
+    try:
+        alerts = requests.get('https://' + os.getenv('COMPANY') + '.logicmonitor.com/santaba/rest/device/groups/' + str(os.getenv('GROUP')) + '/alerts', headers=headers)
         
-        print('severity : ' + str(item['severity']))
-        print('acked : ' + str(item['acked']))
-        print('sdted : ' + str(item['sdted']))
-        print('cleared : ' + str(item['cleared']))
-        if not item['acked'] and not item['sdted'] and not item['cleared']: 
-            if item['severity'] > severity:
-                severity = item['severity']
+        if alerts.json()['total'] > 0:
+            print('total: ' + str(alerts.json()['total']))
 
+        for item in alerts.json()['items']:
+
+            print('severity : ' + str(item['severity']))
+            print('acked : ' + str(item['acked']))
+            print('sdted : ' + str(item['sdted']))
+            print('cleared : ' + str(item['cleared']))
+            if not item['acked'] and not item['sdted'] and not item['cleared']: 
+                if item['severity'] > severity:
+                    severity = item['severity']
+
+    except Exception as e:
+        print(traceback.format_exception(e))
+        pixel.fill(WHITE)
+        time.sleep(1)
+        supervisor.reload()
             
     if severity == 0:
         COLOR = GREEN
-    if severity == 1:
+    if severity == 1: 
         COLOR = YELLOW
-    if severity == 2:
+    if severity == 2: # Warning (yellow in logic monitor)
         COLOR = ORANGE
-    if severity == 3:
+    if severity == 3: # Error
         COLOR = RED
-    # severity 4?
+    if severity == 4: # Critical (red/fire in logic monitor)
+        COLOR = RED
+    # add and else/default of purple in case logic monitor starts snding unknown severites?
 
 
     pixel.fill(COLOR)
 
-    print('...')
+    print('sleep...')
     time.sleep(120)
     
